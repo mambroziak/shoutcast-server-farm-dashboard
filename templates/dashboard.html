@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta http-equiv="refresh" content="15">
+<title>Shoutcast Server Dashboard</title>
+<h1>Shoutcast Command Center Dashboard</h1>
+<style type="text/css">
+body { font-family: arial; }
+.ec2-unhealthy { background-color: red; }
+.ec2-healthy { background-color: green; }
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:bold;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-0lax{text-align:left;vertical-align:top}
+</style>
+
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-0lax">Server Role</th>
+    <th class="tg-0lax">Region</th>
+    <th class="tg-0lax">Name</th>
+    <th class="tg-0lax"><br>Current / Max</br> Listeners</th>
+    <th class="tg-0lax"><br>Peak</br> Listeners</th>
+    <th class="tg-0lax"><br>Unique</br> Listeners</th>
+    <th class="tg-0lax">Avg Time</th>
+    <th class="tg-0lax">Bitrate</th>
+    <th class="tg-0lax">Public IP</th>
+    <th class="tg-0lax">Instance Id</th>
+    <th class="tg-0lax"><br>Instance</br> Type</th>
+    <th class="tg-0lax"><br>Instance</br> State</th>
+  </tr>
+</thead>
+<tbody>
+{% for row in report %}
+    <tr>
+      <td class="tg-0lax">{{ row.role }}</td>
+      <td class="tg-0lax">{{ row.region }}</td>
+      <td class="tg-0lax">{{ row.name }}</td>
+      <td class="tg-0lax">{{ row.currentlisteners }} / {{ row.maxlisteners }}</td>
+      <td class="tg-0lax">{{ row.peaklisteners }}</td>
+      <td class="tg-0lax">{{ row.uniquelisteners }}</td>
+      <td class="tg-0lax">{{ row.averagetime }}</td>
+      <td class="tg-0lax">{{ row.bitrate }}</td>
+      <td class="tg-0lax"><a href="http://{{ row.public_ip }}:8000">{{ row.public_ip }}</a></td>
+      <td class="tg-0lax">{{ row.id }}</td>
+      <td class="tg-0lax">{{ row.instance_type }}</td>
+      {% if row.state == "running" %}
+        <td class="ec2-healthy">{{ row.state }}</td>
+      {% else %}
+        <td class="ec2-unhealthy">{{ row.state }}</td>
+      {% endif %}
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+<p>Total Current Listeners: {{total_current_listeners}} / {{total_max_listeners}}</p>
+<p>Total Peak Listeners: {{total_peak_listeners}}</p>
+<p>Total Unique Listeners: {{total_unique_listeners}}</p>
