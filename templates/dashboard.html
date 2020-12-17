@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<meta http-equiv="refresh" content="15">
+<meta http-equiv="refresh" content="30">
 <title>Shoutcast Server Dashboard</title>
 <h1>Shoutcast Command Center Dashboard</h1>
 <style type="text/css">
 body { font-family: arial; }
 .ec2-unhealthy { background-color: red; }
 .ec2-healthy { background-color: green; }
+.stream-unhealthy { background-color: red; }
+.stream-healthy { background-color: green; }
 .tg  {border-collapse:collapse;border-spacing:0;}
 .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
   overflow:hidden;padding:10px 5px;word-break:normal;}
@@ -20,6 +22,7 @@ body { font-family: arial; }
     <th class="tg-0lax">Server Role</th>
     <th class="tg-0lax">Region</th>
     <th class="tg-0lax">Name</th>
+    <th class="tg-0lax"><br>Stream</br> State</th>
     <th class="tg-0lax"><br>Current / Max</br> Listeners</th>
     <th class="tg-0lax"><br>Peak</br> Listeners</th>
     <th class="tg-0lax"><br>Unique</br> Listeners</th>
@@ -37,6 +40,11 @@ body { font-family: arial; }
       <td class="tg-0lax">{{ row.role }}</td>
       <td class="tg-0lax">{{ row.region }}</td>
       <td class="tg-0lax">{{ row.name }}</td>
+      {% if row.stream_state == "up" %}
+        <td class="stream-healthy">{{ row.stream_state }}</td>
+      {% else %}
+        <td class="stream-unhealthy">{{ row.stream_state }}</td>
+      {% endif %}
       <td class="tg-0lax">{{ row.currentlisteners }} / {{ row.maxlisteners }}</td>
       <td class="tg-0lax">{{ row.peaklisteners }}</td>
       <td class="tg-0lax">{{ row.uniquelisteners }}</td>

@@ -7,33 +7,46 @@ from flask import Flask, flash, request, redirect, render_template, url_for, sen
 
 region_list = ['sa-east-1', 'us-west-2']
 role_types = ['public', 'private']
-shoutcast_aws_instances = []
+#streamuptime
 
-for role_type in role_types:
-    for region in region_list:
-        session = boto3.Session(
-            region_name=region
-        )
-
-        ec2 = session.resource('ec2')
-
-        sc_instances = ec2.instances.filter(Filters=[{
-            'Name': 'tag:shoutcast',
-            'Values': [role_type]}])
-
-        for instance in sc_instances:
-            for tag in instance.tags:
-                if 'Name' in tag['Key']:
-                    name = tag['Value']
-            # Add instance info to a dictionary
-            shoutcast_aws_instances.append({'role': role_type, 'region': region, 'Id': instance.id, 'Name': name, 'Instance_Type': instance.instance_type,
-                         'State': instance.state['Name'], 'Public_IP': instance.public_ip_address, 'Launch_Time': instance.launch_time})
-
-print(shoutcast_aws_instances)
+def seconds_convert(seconds):
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    result = "%02d:%02d:%02d" % (hour, minutes, seconds)
+    return str(result)
 
 
 @app.route('/')
 def dashboard_page():
+    shoutcast_aws_instances = []
+    for role_type in role_types:
+        for region in region_list:
+            session = boto3.Session(
+                region_name=region
+            )
+
+            ec2 = session.resource('ec2')
+
+            sc_instances = ec2.instances.filter(Filters=[{
+                'Name': 'tag:shoutcast',
+                'Values': [role_type]}])
+
+            for instance in sc_instances:
+                for tag in instance.tags:
+                    if 'Name' in tag['Key']:
+                        name = tag['Value']
+                # Add instance info to a dictionary
+                shoutcast_aws_instances.append({'role': role_type, 'region': region, 'Id': instance.id, 'Name': name,
+                                                'Instance_Type': instance.instance_type,
+                                                'State': instance.state['Name'],
+                                                'Public_IP': instance.public_ip_address,
+                                                'Launch_Time': instance.launch_time})
+
+    # print(shoutcast_aws_instances)
+
     report = []
     for sc in shoutcast_aws_instances:
         if sc['State'].lower() == 'running':
@@ -41,20 +54,84 @@ def dashboard_page():
             headers = {
                 'Accept': 'application/json'
             }
-            stats_resp = requests.request("GET", url, headers=headers, data={})
-            stats = json.loads(stats_resp.text)
-            # print(stats)
-            report.append({'role': sc['role'], 'region': sc['region'], 'id': sc['Id'], 'name': sc['Name'], 'instance_type': sc['Instance_Type'],
-                           'state': sc['State'], 'public_ip': sc['Public_IP'], 'launch_time': sc['Launch_Time'],
-                           'currentlisteners': stats['currentlisteners'], 'peaklisteners': stats['peaklisteners'],
-                           'maxlisteners': stats['maxlisteners'], 'uniquelisteners': stats['uniquelisteners'],
-                           'averagetime': stats['averagetime'], 'bitrate': stats['streams'][0]['bitrate']})
+            try:
+                stats_resp = requests.request("GET", url, headers=headers, data={})
+                stats = json.loads(stats_resp.text)
+                # print(stats)
+                if stats['activestreams'] == 1:
+                    stream_state = 'up'
+                    report.append(
+                        {'stream_state': stream_state,
+                         'role': sc['role'],
+                         'region': sc['region'],
+                         'id': sc['Id'],
+                         'name': sc['Name'],
+                         'instance_type': sc['Instance_Type'],
+                         'state': sc['State'],
+                         'public_ip': sc['Public_IP'],
+                         'launch_time': sc['Launch_Time'],
+                         'currentlisteners': stats['currentlisteners'],
+                         'peaklisteners': stats['peaklisteners'],
+                         'maxlisteners': stats['maxlisteners'],
+                         'uniquelisteners': stats['uniquelisteners'],
+                         'averagetime': seconds_convert(stats['streams'][0]['averagetime']),
+                         'bitrate': stats['streams'][0]['bitrate']})
+
+                else:
+                    stream_state = 'down'
+                    report.append(
+                        {'stream_state': stream_state,
+                         'role': sc['role'],
+                         'region': sc['region'],
+                         'id': sc['Id'],
+                         'name': sc['Name'],
+                         'instance_type': sc['Instance_Type'],
+                         'state': sc['State'],
+                         'public_ip': sc['Public_IP'],
+                         'launch_time': sc['Launch_Time'],
+                         'currentlisteners': stats['currentlisteners'],
+                         'peaklisteners': stats['peaklisteners'],
+                         'maxlisteners': stats['maxlisteners'],
+                         'uniquelisteners': stats['uniquelisteners'],
+                         'averagetime': 0,
+                         'bitrate': stats['streams'][0]['bitrate']})
+
+            except requests.exceptions.RequestException as e:
+                print(e)
+                stream_state = 'failed'
+                report.append(
+                    {'stream_state': stream_state,
+                     'role': sc['role'],
+                     'region': sc['region'],
+                     'id': sc['Id'],
+                     'name': sc['Name'],
+                     'instance_type': sc['Instance_Type'],
+                     'state': sc['State'],
+                     'public_ip': sc['Public_IP'],
+                     'launch_time': sc['Launch_Time'],
+                     'currentlisteners': 0,
+                     'peaklisteners': 0,
+                     'maxlisteners': 0,
+                     'uniquelisteners': 0,
+                     'averagetime': 0, 'bitrate': 0})
+
         else:
-            report.append({'role': sc['role'], 'region': sc['region'], 'id': sc['Id'], 'name': sc['Name'], 'instance_type': sc['Instance_Type'],
-                           'state': sc['State'], 'public_ip': '0.0.0.0', 'launch_time': 'n/a',
-                           'currentlisteners': 0, 'peaklisteners': 0,
-                           'maxlisteners': 0, 'uniquelisteners': 0,
-                           'averagetime': 0, 'bitrate': 0})
+            stream_state = 'down'
+            report.append({'stream_state': stream_state,
+                           'role': sc['role'],
+                           'region': sc['region'],
+                           'id': sc['Id'],
+                           'name': sc['Name'],
+                           'instance_type': sc['Instance_Type'],
+                           'state': sc['State'],
+                           'public_ip': '0.0.0.0',
+                           'launch_time': 'n/a',
+                           'currentlisteners': 0,
+                           'peaklisteners': 0,
+                           'maxlisteners': 0,
+                           'uniquelisteners': 0,
+                           'averagetime': 0,
+                           'bitrate': 0})
 
     #report = [{'region': 'sa-east-1', 'name': 'i-what', 'currentlisteners': 400, 'peaklisteners': 702, 'maxlisteners': 1000, 'uniquelisteners': 299,'averagetime':'77', 'bitrate': '33', 'public_ip': '3.3.3.3', 'id': 'theone', 'type': 't2.small', 'state': 'running'},
     #           {'region': 'sa-east-1', 'name': 'i-what', 'currentlisteners': 309, 'peaklisteners': 444, 'maxlisteners': 1000, 'uniquelisteners': 301,'averagetime':'77', 'bitrate': '33', 'public_ip': '3.3.3.3', 'id': 'theone', 'type': 't2.small', 'state': 'running'}]
