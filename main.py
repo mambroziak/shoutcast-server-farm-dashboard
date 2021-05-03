@@ -6,7 +6,7 @@ from app import app
 from flask import Flask, flash, request, redirect, render_template, url_for, send_from_directory
 
 region_list = ['sa-east-1', 'us-west-2']
-role_types = ['public', 'private']
+role_types = ['public', 'private', 'public-bugout', 'private-bugout']
 #streamuptime
 
 def seconds_convert(seconds):
